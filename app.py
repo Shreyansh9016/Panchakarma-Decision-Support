@@ -1,5 +1,7 @@
 import streamlit as st
+import os
 from rag_pipeline import load_db, generate_answer
+from build_db import build_db
 
 
 # -------------------------
@@ -34,7 +36,6 @@ st.sidebar.markdown("""
 4. Review the recommendation and supporting evidence  
 """)
 
-
 if st.sidebar.button("Load Example Case"):
     st.session_state.example = True
 
@@ -46,12 +47,23 @@ st.title("Evidence-Based Panchakarma Decision Support System")
 st.caption("Retrieval-Augmented Generation using Classical Ayurveda Sources")
 
 
+# =========================================================
+# BUILD DATABASE IF MISSING (REQUIRED FOR STREAMLIT CLOUD)
+# =========================================================
+
+DB_PATH = "vector_db/classical_db"
+
+if not os.path.exists(DB_PATH):
+    st.info("Initializing knowledge base. This may take a few minutes...")
+    build_db("data/classical", DB_PATH)
+
+
 # -------------------------
 # LOAD DATABASE (CACHED)
 # -------------------------
 @st.cache_resource
 def get_db():
-    return load_db("vector_db/classical_db")
+    return load_db(DB_PATH)
 
 db = get_db()
 
@@ -115,7 +127,6 @@ History: {history}
 """
 
     with st.spinner("Processing request..."):
-
         answer, sources = generate_answer(query, db)
 
     st.success("Analysis completed.")
@@ -129,7 +140,7 @@ History: {history}
 
 
     # -------------------------
-    # EVIDENCE
+    # SUPPORTING EVIDENCE
     # -------------------------
     st.subheader("Supporting Evidence")
 
