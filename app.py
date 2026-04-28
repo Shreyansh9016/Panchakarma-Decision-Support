@@ -80,104 +80,101 @@ symptoms_default = example_symptoms if "example" in st.session_state else ""
 
 
 # -------------------------
-# PATIENT INPUT FORM
+# MODE SELECTION TABS
 # -------------------------
-st.subheader("Patient Information")
+tab1, tab2 = st.tabs(["📋 Patient Case Analysis", "💬 General Ayurveda Queries"])
 
-with st.form("patient_form"):
+with tab1:
+    # -------------------------
+    # PATIENT INPUT FORM
+    # -------------------------
+    st.subheader("Patient Information")
 
-    col1, col2 = st.columns(2)
+    with st.form("patient_form"):
 
-    with col1:
-        age = st.number_input("Age", 1, 120)
-        gender = st.selectbox("Gender", ["Male", "Female", "Other"])
+        col1, col2 = st.columns(2)
 
-    with col2:
-        prakriti = st.selectbox("Prakriti", ["Vata", "Pitta", "Kapha"])
-        history = st.text_area("Medical History")
+        with col1:
+            age = st.number_input("Age", 1, 120)
+            gender = st.selectbox("Gender", ["Male", "Female", "Other"])
 
-    symptoms = st.text_area(
-        "Symptoms",
-        value=symptoms_default,
-        height=150
-    )
+        with col2:
+            prakriti = st.selectbox("Prakriti", ["Vata", "Pitta", "Kapha"])
+            history = st.text_area("Medical History")
 
-    submit = st.form_submit_button("Submit")
+        symptoms = st.text_area(
+            "Symptoms",
+            value=symptoms_default,
+            height=150
+        )
 
+        submit = st.form_submit_button("Submit")
 
-# -------------------------
-# VALIDATION
-# -------------------------
-if submit and not symptoms.strip():
-    st.warning("Please provide a description of symptoms.")
-    st.stop()
-
-
-# -------------------------
-# PROCESS INPUT
-# -------------------------
-if submit:
-
-    query = f"""
+    # -------------------------
+    # PROCESS INPUT & VALIDATION
+    # -------------------------
+    if submit:
+        if not symptoms.strip():
+            st.warning("Please provide a description of symptoms.")
+        else:
+            query = f"""
 Age: {age}
 Gender: {gender}
 Prakriti: {prakriti}
 Symptoms: {symptoms}
 History: {history}
 """
+            with st.spinner("Processing request..."):
+                answer, sources = generate_answer(query, db)
 
-    with st.spinner("Processing request..."):
-        answer, sources = generate_answer(query, db)
-
-    st.success("Analysis completed.")
-
-
-    # -------------------------
-    # RECOMMENDATION
-    # -------------------------
-    st.subheader("Recommendation")
-    st.write(answer)
+            st.success("Analysis completed.")
 
 
-    # -------------------------
-    # SUPPORTING EVIDENCE
-    # -------------------------
-    st.subheader("Supporting Evidence")
-
-    with st.expander("View Source Passages"):
-
-        for i, doc in enumerate(sources):
-            st.markdown(
-                f"**Source {i+1}: {doc.metadata.get('source','Unknown')}**"
-            )
-            st.write(doc.page_content[:600])
-            st.markdown("---")
+            # -------------------------
+            # RECOMMENDATION
+            # -------------------------
+            st.subheader("Recommendation")
+            st.write(answer)
 
 
-# -------------------------
-# Q&A SECTION
-# -------------------------
-st.markdown("---")
-st.header("💬 Post-Therapy Questions / General Ayurveda Queries")
+            # -------------------------
+            # SUPPORTING EVIDENCE
+            # -------------------------
+            st.subheader("Supporting Evidence")
 
-user_query = st.text_area("Ask your question (e.g., 'Can I drink cold water after Vamana?')")
+            with st.expander("View Source Passages"):
 
-if st.button("Get Answer"):
-    if user_query.strip():
-        with st.spinner("Generating answer from classical texts..."):
-            qa_answer, qa_sources = answer_general_query(user_query, db)
-            
-        st.write(qa_answer)
-        st.caption("✨ Answer generated from classical Ayurvedic texts")
-        
-        if qa_sources:
-            with st.expander("View Retrieved Passages (Transparency)"):
-                for i, doc in enumerate(qa_sources):
-                    st.markdown(f"**Source {i+1}: {doc.metadata.get('source', 'Unknown')}**")
-                    st.write(doc.page_content[:500] + "...")
+                for i, doc in enumerate(sources):
+                    st.markdown(
+                        f"**Source {i+1}: {doc.metadata.get('source','Unknown')}**"
+                    )
+                    st.write(doc.page_content[:600])
                     st.markdown("---")
-    else:
-        st.warning("Please enter a question")
+
+with tab2:
+    # -------------------------
+    # Q&A SECTION
+    # -------------------------
+    st.header("Post-Therapy Questions / General Ayurveda Queries")
+
+    user_query = st.text_area("Ask your question (e.g., 'Can I drink cold water after Vamana?')")
+
+    if st.button("Get Answer"):
+        if user_query.strip():
+            with st.spinner("Generating answer from classical texts..."):
+                qa_answer, qa_sources = answer_general_query(user_query, db)
+                
+            st.write(qa_answer)
+            st.caption("✨ Answer generated from classical Ayurvedic texts")
+            
+            if qa_sources:
+                with st.expander("View Retrieved Passages (Transparency)"):
+                    for i, doc in enumerate(qa_sources):
+                        st.markdown(f"**Source {i+1}: {doc.metadata.get('source', 'Unknown')}**")
+                        st.write(doc.page_content[:500] + "...")
+                        st.markdown("---")
+        else:
+            st.warning("Please enter a question")
 
 # -------------------------
 # DISCLAIMER

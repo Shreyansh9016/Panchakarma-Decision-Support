@@ -90,7 +90,6 @@ Provide your answer in clear sections:
 """
 
     response = llm.invoke(prompt)
-
     return response.content, docs
 
 # -------------------------
