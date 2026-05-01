@@ -1,8 +1,6 @@
 import streamlit as st
 import os
 from rag_pipeline import load_db, generate_answer, answer_general_query
-from build_db import build_db
-
 
 # -------------------------
 # PAGE CONFIG
@@ -11,7 +9,6 @@ st.set_page_config(
     page_title="Panchakarma Decision Support System",
     layout="wide"
 )
-
 
 # -------------------------
 # SIDEBAR
@@ -39,34 +36,34 @@ st.sidebar.markdown("""
 if st.sidebar.button("Load Example Case"):
     st.session_state.example = True
 
-
 # -------------------------
 # MAIN TITLE
 # -------------------------
 st.title("Evidence-Based Panchakarma Decision Support System")
 st.caption("Retrieval-Augmented Generation using Classical Ayurveda Sources")
 
-
 # =========================================================
-# BUILD DATABASE IF MISSING (REQUIRED FOR STREAMLIT CLOUD)
+# LOAD PRE-BUILT DATABASE (MANDATORY FOR HF)
 # =========================================================
-
 DB_PATH = "vector_db/classical_db"
 
 if not os.path.exists(DB_PATH):
-    st.info("Initializing knowledge base. This may take a few minutes...")
-    build_db("data/classical", DB_PATH)
-
+    st.error("❌ Vector DB not found. Please upload pre-built database.")
+    st.stop()
 
 # -------------------------
 # LOAD DATABASE (CACHED)
 # -------------------------
-@st.cache_resource
+@st.cache_resource(show_spinner="Loading knowledge base...")
 def get_db():
     return load_db(DB_PATH)
 
-db = get_db()
-
+# Safe loading
+try:
+    db = get_db()
+except Exception as e:
+    st.error(f"❌ Failed to load database: {str(e)}")
+    st.stop()
 
 # -------------------------
 # EXAMPLE DATA
@@ -78,16 +75,15 @@ Symptoms worsen in cold weather.
 
 symptoms_default = example_symptoms if "example" in st.session_state else ""
 
-
 # -------------------------
 # MODE SELECTION TABS
 # -------------------------
 tab1, tab2 = st.tabs(["📋 Patient Case Analysis", "💬 General Ayurveda Queries"])
 
+# =========================================================
+# TAB 1: PATIENT CASE
+# =========================================================
 with tab1:
-    # -------------------------
-    # PATIENT INPUT FORM
-    # -------------------------
     st.subheader("Patient Information")
 
     with st.form("patient_form"):
@@ -110,9 +106,6 @@ with tab1:
 
         submit = st.form_submit_button("Submit")
 
-    # -------------------------
-    # PROCESS INPUT & VALIDATION
-    # -------------------------
     if submit:
         if not symptoms.strip():
             st.warning("Please provide a description of symptoms.")
@@ -129,13 +122,11 @@ History: {history}
 
             st.success("Analysis completed.")
 
-
             # -------------------------
             # RECOMMENDATION
             # -------------------------
             st.subheader("Recommendation")
-            st.write(answer)
-
+            st.markdown(answer)
 
             # -------------------------
             # SUPPORTING EVIDENCE
@@ -143,35 +134,38 @@ History: {history}
             st.subheader("Supporting Evidence")
 
             with st.expander("View Source Passages"):
-
                 for i, doc in enumerate(sources):
                     st.markdown(
                         f"**Source {i+1}: {doc.metadata.get('source','Unknown')}**"
                     )
-                    st.write(doc.page_content[:600])
+                    st.code(doc.page_content[:600], language="markdown")
                     st.markdown("---")
 
+# =========================================================
+# TAB 2: GENERAL Q&A
+# =========================================================
 with tab2:
-    # -------------------------
-    # Q&A SECTION
-    # -------------------------
     st.header("Post-Therapy Questions / General Ayurveda Queries")
 
-    user_query = st.text_area("Ask your question (e.g., 'Can I drink cold water after Vamana?')")
+    user_query = st.text_area(
+        "Ask your question (e.g., 'Can I drink cold water after Vamana?')"
+    )
 
     if st.button("Get Answer"):
         if user_query.strip():
             with st.spinner("Generating answer from classical texts..."):
                 qa_answer, qa_sources = answer_general_query(user_query, db)
-                
-            st.write(qa_answer)
+
+            st.markdown(qa_answer)
             st.caption("✨ Answer generated from classical Ayurvedic texts")
-            
+
             if qa_sources:
                 with st.expander("View Retrieved Passages (Transparency)"):
                     for i, doc in enumerate(qa_sources):
-                        st.markdown(f"**Source {i+1}: {doc.metadata.get('source', 'Unknown')}**")
-                        st.write(doc.page_content[:500] + "...")
+                        st.markdown(
+                            f"**Source {i+1}: {doc.metadata.get('source', 'Unknown')}**"
+                        )
+                        st.code(doc.page_content[:500] + "...", language="markdown")
                         st.markdown("---")
         else:
             st.warning("Please enter a question")
