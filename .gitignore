@@ -10,8 +10,6 @@ venv/
 # Environment variables
 .env
 
-# Vector databases
-vector_db/
 
 # OS files
 .DS_Store
